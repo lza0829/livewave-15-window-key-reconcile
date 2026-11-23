@@ -18,6 +18,8 @@ def 总览() -> dict:
             "撤回单数": c("SELECT COUNT(*) FROM 撤回单"),
             "开启窗": c("SELECT COUNT(*) FROM 热度窗 WHERE 状态='开启'"),
             "已关闭窗": c("SELECT COUNT(*) FROM 热度窗 WHERE 状态='已关闭'"),
+            "阻断窗": c("SELECT COUNT(*) FROM 热度窗 WHERE 互证状态='阻断'"),
+            "已阻断事件": c("SELECT COUNT(*) FROM 互动事件 WHERE 命运='已阻断'"),
             "撤回单": c("SELECT COUNT(*) FROM 撤回单"),
             "旁路匣": c("SELECT COUNT(*) FROM 旁路匣"),
             "装载批次": c("SELECT COUNT(*) FROM 装载批次"),

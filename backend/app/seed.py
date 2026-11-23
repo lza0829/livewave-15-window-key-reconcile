@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS 热度窗 (
   送礼合计 INTEGER NOT NULL DEFAULT 0,
   事件笔数 INTEGER NOT NULL DEFAULT 0,
   关闭处理时 TEXT NOT NULL DEFAULT '',
-  版本 INTEGER NOT NULL DEFAULT 0
+  版本 INTEGER NOT NULL DEFAULT 0,
+  互证状态 TEXT NOT NULL DEFAULT '未核'
 );
 CREATE TABLE IF NOT EXISTS 撤回单 (
   编号 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,9 +77,23 @@ CREATE TABLE IF NOT EXISTS 窗贯验 (
   撤回数 INTEGER NOT NULL,
   旁路数 INTEGER NOT NULL,
   是否通过 INTEGER NOT NULL,
-  说明 TEXT NOT NULL
+  说明 TEXT NOT NULL,
+  错挂数 INTEGER NOT NULL DEFAULT 0,
+  阻断窗数 INTEGER NOT NULL DEFAULT 0
 );
 """
+
+
+def 补列(conn) -> None:
+    """老库轻量迁移：CREATE IF NOT EXISTS 不会补列，缺失列按默认值补齐。"""
+    窗列 = {r["name"] for r in conn.execute("PRAGMA table_info(热度窗)")}
+    if "互证状态" not in 窗列:
+        conn.execute("ALTER TABLE 热度窗 ADD COLUMN 互证状态 TEXT NOT NULL DEFAULT '未核'")
+    验列 = {r["name"] for r in conn.execute("PRAGMA table_info(窗贯验)")}
+    if "错挂数" not in 验列:
+        conn.execute("ALTER TABLE 窗贯验 ADD COLUMN 错挂数 INTEGER NOT NULL DEFAULT 0")
+    if "阻断窗数" not in 验列:
+        conn.execute("ALTER TABLE 窗贯验 ADD COLUMN 阻断窗数 INTEGER NOT NULL DEFAULT 0")
 
 
 def 此刻() -> str:
@@ -88,6 +103,7 @@ def 此刻() -> str:
 def 初始化库() -> None:
     conn = 连接()
     conn.executescript(建表)
+    补列(conn)
     if conn.execute("SELECT COUNT(*) AS c FROM 站规").fetchone()["c"] == 0:
         for k, v in {
             "站名": "播浪",
@@ -96,6 +112,8 @@ def 初始化库() -> None:
             "水位推进策略": "事件时最大值",
             "关窗条件": "水位>=窗止即关闭发射",
             "旁路条件": "水位>=窗止+允许迟到",
+            "窗键互证口径": "合计加窗键归属：每条已入窗事件按事件时重算窗键须与落库窗键一致，且窗表合计=事件求和；任一不符即互证失败并阻断该窗",
+            "互证失败口径": "失败闭：阻断窗不得标发射成功，入流不得再写入，直至重算互证通过",
             "骨架": "互动事件入流→事件时间水位线推进→热度窗关闭发射→迟到修正撤回→窗输出与撤回互证",
         }.items():
             conn.execute("INSERT INTO 站规(键, 值) VALUES (?, ?)", (k, v))

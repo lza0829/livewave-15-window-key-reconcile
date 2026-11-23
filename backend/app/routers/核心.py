@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.db import 夹具目录, 连接
-from app.services import 装载, 贯验, 目录
+from app.services import 装载, 贯验, 目录, 窗键互证
 
 路由 = APIRouter(prefix="/api")
 
@@ -143,9 +143,15 @@ def 做贯验():
 
 @路由.get("/贯验")
 def 列贯验():
+    return 贯验.列履历()
+
+
+@路由.get("/窗键互证")
+def 窗键互证只读():
+    """窗键互证只读接口：错挂列表、各窗合计、valid（不写库、不阻断、不推进任何状态）。"""
     conn = 连接()
     try:
-        return [dict(r) for r in conn.execute("SELECT * FROM 窗贯验 ORDER BY 编号 DESC LIMIT 20")]
+        return 窗键互证.读互证(conn)
     finally:
         conn.close()
 
